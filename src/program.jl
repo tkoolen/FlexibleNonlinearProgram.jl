@@ -78,8 +78,7 @@ end
 
 function MathProgBase.eval_grad_f(p::NonlinearProgram, g, x)
     g[:] = zero(eltype(x))
-    sparseGradient = ForwardDiff.gradient(p.objective, view(x, p.objectiveVarIndices)) # TODO: allocations
-    copy!(view(g, p.objectiveVarIndices), sparseGradient)
+    ForwardDiff.gradient!(view(g, p.objectiveVarIndices), p.objective, view(x, p.objectiveVarIndices))
 end
 
 function MathProgBase.eval_g(p::NonlinearProgram, g, x)
