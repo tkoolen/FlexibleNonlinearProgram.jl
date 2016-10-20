@@ -2,8 +2,11 @@ module FlexibleNonlinearProgram
 
 using ForwardDiff
 using MathProgBase
+using DataStructures: OrderedDict
+
 import Base: length
 import MathProgBase: loadproblem!
+
 
 include("decision_variable.jl")
 include("constraint.jl")

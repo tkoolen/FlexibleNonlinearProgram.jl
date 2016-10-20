@@ -45,6 +45,10 @@ end
     add_constraint!(prog, Constraint(constraint2!, [40.], [40.]), x)
 
     test_hs071(prog)
+
+    # test without hesslag
+    prog.featuresAvailable = [:Grad, :Jac] # TODO: improve API
+    test_hs071(prog)
 end
 
 @testset "HS071 single constraint" begin
@@ -56,5 +60,9 @@ end
     end
     add_constraint!(prog, Constraint(eval_my_constraint!, Float64[25, 40], Float64[Inf, 40]), x)
 
+    test_hs071(prog)
+
+    # test without hesslag
+    prog.featuresAvailable = [:Grad, :Jac] # TODO: improve API
     test_hs071(prog)
 end
