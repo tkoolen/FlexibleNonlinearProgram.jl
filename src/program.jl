@@ -112,7 +112,6 @@ function MathProgBase.jac_structure(p::NonlinearProgram)
 end
 
 function MathProgBase.hesslag_structure(p::NonlinearProgram)
-    # TODO: could do upper or lower triangle only, but I don't think it would much of a gain.
     rows = Int64[]
     cols = Int64[]
     allVarIndices = Vector{Vector{Int64}}()
