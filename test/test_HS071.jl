@@ -5,11 +5,10 @@ function full_hesslag{T}(evaluator::MathProgBase.AbstractNLPEvaluator, x::Abstra
     MathProgBase.eval_hesslag(evaluator, Hvec, x, σ, μ)
     H = zeros(length(x), length(x))
     for (hesslag_row, hesslag_col, hesslag_val) in zip(hesslag_rows, hesslag_cols, Hvec)
-        if hesslag_row >= hesslag_col
-            H[hesslag_row, hesslag_col] += hesslag_val
-            H[hesslag_col, hesslag_row] += hesslag_val
-        end
+        H[hesslag_row, hesslag_col] += hesslag_val
+        H[hesslag_col, hesslag_row] += hesslag_val
     end
+
     H
 end
 

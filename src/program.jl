@@ -123,8 +123,10 @@ function MathProgBase.hesslag_structure(p::NonlinearProgram)
     for varIndices in allVarIndices
         for col in varIndices
             for row in varIndices
-                push!(rows, row)
-                push!(cols, col)
+                if row >= col # lower triangle only
+                    push!(rows, row)
+                    push!(cols, col)
+                end
             end
         end
     end
@@ -140,22 +142,22 @@ function MathProgBase.eval_jac_g(p::NonlinearProgram, J, x)
         sparseJac = ForwardDiff.jacobian(out)
         sparseJacLength = length(sparseJac)
         Jview = view(J, startIndex : startIndex + sparseJacLength - 1)
-        copy!(Jview, reshape(sparseJac, sparseJacLength))
+        copy!(Jview, vec(sparseJac))
         startIndex += sparseJacLength
     end
 end
 
 function MathProgBase.eval_hesslag(p::NonlinearProgram, H, x, σ, μ)
     HstartIndex = 1
-    
+
     # objective
     xObjective = view(x, p.objectiveVarIndices)
     out = HessianResult(xObjective) # TODO: preallocate
     ForwardDiff.hessian!(out, p.objective, xObjective)
     Hobj = ForwardDiff.hessian(out)
     scale!(Hobj, σ)
-    HobjLength = length(Hobj)
-    copy!(view(H, HstartIndex : HstartIndex + HobjLength - 1), reshape(Hobj, HobjLength))
+    HobjLength = num_triangular_elements(size(Hobj, 1))
+    copy_lower_triangle_column_major!(view(H, HstartIndex : HstartIndex + HobjLength - 1), Hobj)
     HstartIndex += HobjLength
 
     # constraints
@@ -166,8 +168,8 @@ function MathProgBase.eval_hesslag(p::NonlinearProgram, H, x, σ, μ)
         out = HessianResult(xConstraint) # TODO: preallocate
         ForwardDiff.hessian!(out, LagrangianContribution(constraint, μConstraint), xConstraint)
         Hconstraint = ForwardDiff.hessian(out)
-        HconstraintLength = length(Hconstraint)
-        copy!(view(H, HstartIndex : HstartIndex + HconstraintLength - 1), reshape(Hconstraint, HconstraintLength))
+        HconstraintLength = num_triangular_elements(size(Hconstraint, 1))
+        copy_lower_triangle_column_major!(view(H, HstartIndex : HstartIndex + HobjLength - 1), Hconstraint)
         HstartIndex += HconstraintLength
         constraintStartIndex += length(constraint)
     end

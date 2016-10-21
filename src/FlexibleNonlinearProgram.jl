@@ -7,7 +7,7 @@ using DataStructures: OrderedDict
 import Base: length
 import MathProgBase: loadproblem!
 
-
+include("util.jl")
 include("decision_variable.jl")
 include("constraint.jl")
 include("program.jl")
