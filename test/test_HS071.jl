@@ -1,4 +1,16 @@
-# Test adapted from MathProgBase (test/nlp.jl)
+# Test code adapted from MathProgBase (test/nlp.jl)
+function full_hesslag{T}(evaluator::MathProgBase.AbstractNLPEvaluator, x::AbstractVector{T}, σ::T, μ::AbstractVector{T})
+    hesslag_rows, hesslag_cols = MathProgBase.hesslag_structure(evaluator)
+    Hvec = similar(x, length(hesslag_rows))
+    MathProgBase.eval_hesslag(evaluator, Hvec, x, σ, μ)
+    H = zeros(length(x), length(x))
+    for (hesslag_row, hesslag_col, hesslag_val) in zip(hesslag_rows, hesslag_cols, Hvec)
+        H[hesslag_row, hesslag_col] += hesslag_val
+        H[hesslag_col, hesslag_row] += hesslag_val
+    end
+
+    H
+end
 
 function test_hs071(prog::NonlinearProgram)
     solver = MathProgBase.defaultNLPsolver
@@ -22,6 +34,14 @@ function test_hs071(prog::NonlinearProgram)
     MathProgBase.optimize!(m)
     stat = MathProgBase.status(m)
     @test stat == :Optimal
+
+    # Test that hesslag matches manually coded version.
+    x = rand(num_variables(prog))
+    σ = rand()
+    μ = rand(constraint_length(prog))
+    hesslag_manual = full_hesslag(HS071(), x, σ, μ)
+    hesslag_prog = full_hesslag(prog, x, σ, μ)
+    @test isapprox(hesslag_manual, hesslag_prog)
 end
 
 function unconstrained_hs071()
@@ -45,6 +65,10 @@ end
     add_constraint!(prog, Constraint(constraint2!, [40.], [40.]), x)
 
     test_hs071(prog)
+
+    # test without hesslag
+    prog.featuresAvailable = [:Grad, :Jac] # TODO: improve API
+    test_hs071(prog)
 end
 
 @testset "HS071 single constraint" begin
@@ -56,5 +80,9 @@ end
     end
     add_constraint!(prog, Constraint(eval_my_constraint!, Float64[25, 40], Float64[Inf, 40]), x)
 
+    test_hs071(prog)
+
+    # test without hesslag
+    prog.featuresAvailable = [:Grad, :Jac] # TODO: improve API
     test_hs071(prog)
 end

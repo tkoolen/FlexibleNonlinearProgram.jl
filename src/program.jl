@@ -3,11 +3,11 @@ type NonlinearProgram <: MathProgBase.AbstractNLPEvaluator
     objective::Function
     objectiveVarIndices::Vector{Int64}
     sense::Symbol
-    constraintVarIndices::Dict{Constraint, Vector{Int64}}
+    constraintVarIndices::OrderedDict{Constraint, Vector{Int64}}
     featuresAvailable::Vector{Symbol}
 
     function NonlinearProgram()
-        new([], () -> 0., [], :Min, Dict(), [:Grad, :Jac])
+        new([], () -> 0., [], :Min, Dict(), [:Grad, :Jac, :Hess])
     end
 end
 
@@ -111,6 +111,27 @@ function MathProgBase.jac_structure(p::NonlinearProgram)
     rows, cols
 end
 
+function MathProgBase.hesslag_structure(p::NonlinearProgram)
+    rows = Int64[]
+    cols = Int64[]
+    allVarIndices = Vector{Vector{Int64}}()
+    push!(allVarIndices, p.objectiveVarIndices)
+    for varIndices in values(p.constraintVarIndices)
+        push!(allVarIndices, varIndices)
+    end
+    for varIndices in allVarIndices
+        for col in varIndices
+            for row in varIndices
+                if row >= col # lower triangle only
+                    push!(rows, row)
+                    push!(cols, col)
+                end
+            end
+        end
+    end
+    rows, cols
+end
+
 function MathProgBase.eval_jac_g(p::NonlinearProgram, J, x)
     startIndex = 1
     for (constraint, varIndices) in p.constraintVarIndices
@@ -120,8 +141,36 @@ function MathProgBase.eval_jac_g(p::NonlinearProgram, J, x)
         sparseJac = ForwardDiff.jacobian(out)
         sparseJacLength = length(sparseJac)
         Jview = view(J, startIndex : startIndex + sparseJacLength - 1)
-        copy!(Jview, reshape(sparseJac, sparseJacLength))
+        copy!(Jview, vec(sparseJac))
         startIndex += sparseJacLength
+    end
+end
+
+function MathProgBase.eval_hesslag(p::NonlinearProgram, H, x, σ, μ)
+    HstartIndex = 1
+
+    # objective
+    xObjective = view(x, p.objectiveVarIndices)
+    out = HessianResult(xObjective) # TODO: preallocate
+    ForwardDiff.hessian!(out, p.objective, xObjective)
+    Hobj = ForwardDiff.hessian(out)
+    scale!(Hobj, σ)
+    HobjLength = num_triangular_elements(size(Hobj, 1))
+    copy_lower_triangle_column_major!(view(H, HstartIndex : HstartIndex + HobjLength - 1), Hobj)
+    HstartIndex += HobjLength
+
+    # constraints
+    constraintStartIndex = 1
+    for (constraint, varIndices) in p.constraintVarIndices
+        xConstraint = view(x, varIndices)
+        μConstraint = view(μ, constraintStartIndex : constraintStartIndex + length(constraint) - 1)
+        out = HessianResult(xConstraint) # TODO: preallocate
+        ForwardDiff.hessian!(out, LagrangianContribution(constraint, μConstraint), xConstraint)
+        Hconstraint = ForwardDiff.hessian(out)
+        HconstraintLength = num_triangular_elements(size(Hconstraint, 1))
+        copy_lower_triangle_column_major!(view(H, HstartIndex : HstartIndex + HobjLength - 1), Hconstraint)
+        HstartIndex += HconstraintLength
+        constraintStartIndex += length(constraint)
     end
 end
 

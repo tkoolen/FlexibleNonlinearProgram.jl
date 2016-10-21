@@ -18,3 +18,14 @@ name(c::Constraint) = c.name
 length(c::Constraint) = length(c.lowerBound)
 
 evaluate!(out::AbstractVector, c::Constraint, arg::AbstractVector) = c.f!(out, arg)
+
+type LagrangianContribution{F, V<:AbstractVector}
+    constraint::Constraint{F}
+    μ::V
+end
+
+function (functor::LagrangianContribution)(arg::AbstractVector)
+    out = similar(arg, length(functor.constraint))
+    functor.constraint.f!(out, arg)
+    functor.μ ⋅ out
+end
