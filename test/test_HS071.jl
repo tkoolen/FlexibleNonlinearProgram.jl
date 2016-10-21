@@ -125,7 +125,7 @@ function test_hs071(prog::NonlinearProgram)
     # Test that hesslag matches manually coded version.
     x = rand(num_variables(prog))
     σ = rand()
-    μ = zeros(constraint_length(prog))
+    μ = rand(constraint_length(prog))
     hesslag_manual = full_hesslag(HS071(), x, σ, μ)
     hesslag_prog = full_hesslag(prog, x, σ, μ)
     @test isapprox(hesslag_manual, hesslag_prog)
