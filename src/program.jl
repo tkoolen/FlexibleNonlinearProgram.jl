@@ -168,7 +168,7 @@ function MathProgBase.eval_hesslag(p::NonlinearProgram, H, x, σ, μ)
         ForwardDiff.hessian!(out, LagrangianContribution(constraint, μConstraint), xConstraint)
         Hconstraint = ForwardDiff.hessian(out)
         HconstraintLength = num_triangular_elements(size(Hconstraint, 1))
-        copy_lower_triangle_column_major!(view(H, HstartIndex : HstartIndex + HobjLength - 1), Hconstraint)
+        copy_lower_triangle_column_major!(view(H, HstartIndex : HstartIndex + HconstraintLength - 1), Hconstraint)
         HstartIndex += HconstraintLength
         constraintStartIndex += length(constraint)
     end
