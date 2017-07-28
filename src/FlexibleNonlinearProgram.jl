@@ -1,10 +1,10 @@
 module FlexibleNonlinearProgram
 
+using DiffBase
 using ForwardDiff
 using MathProgBase
 using DataStructures: OrderedDict
 
-import Base: length
 import MathProgBase: loadproblem!
 
 include("util.jl")

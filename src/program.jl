@@ -1,18 +1,18 @@
 type NonlinearProgram <: MathProgBase.AbstractNLPEvaluator
     variables::Vector{DecisionVariable}
-    objective::Function
-    objectiveVarIndices::Vector{Int64}
+    objective::Function # TODO: type unstable
+    objective_var_indices::Vector{Int64}
     sense::Symbol
-    constraintVarIndices::OrderedDict{Constraint, Vector{Int64}}
-    featuresAvailable::Vector{Symbol}
+    constraint_var_indices::OrderedDict{Constraint, Vector{Int64}} # TODO: type unstable
+    available_features::Vector{Symbol}
 
     function NonlinearProgram()
-        new([], () -> 0., [], :Min, Dict(), [:Grad, :Jac, :Hess])
+        new([], () -> 0., [], :Min, OrderedDict{Constraint, Vector{Int64}}(), [:Grad, :Jac, :Hess])
     end
 end
 
 num_variables(p::NonlinearProgram) = length(p.variables)
-constraints(p::NonlinearProgram) = keys(p.constraintVarIndices)
+constraints(p::NonlinearProgram) = keys(p.constraint_var_indices)
 constraint_length(p::NonlinearProgram) = sum(length(c) for c in constraints(p))
 variable_lower_bound(p::NonlinearProgram) = [lower_bound(var) for var in p.variables]
 variable_upper_bound(p::NonlinearProgram) = [upper_bound(var) for var in p.variables]
@@ -21,11 +21,11 @@ constraint_upper_bound(p::NonlinearProgram) = vcat([upper_bound(c) for c in cons
 
 add_variable!(p::NonlinearProgram, var::DecisionVariable) = begin push!(p.variables, var); num_variables(p) end
 
-function add_variables!(p::NonlinearProgram, baseName::String, lowerBound::Vector{Float64}, upperBound::Vector{Float64})
-    length(lowerBound) == length(upperBound) || error("lower bound and upper bound must have the same length")
+function add_variables!(p::NonlinearProgram, base_name::String, lower_bound::Vector{Float64}, upper_bound::Vector{Float64})
+    length(lower_bound) == length(upper_bound) || error("lower bound and upper bound must have the same length")
     variables = DecisionVariable[]
-    for i = 1 : length(lowerBound)
-        var = DecisionVariable("$(baseName)_$i", lowerBound[i], upperBound[i])
+    for i = 1 : length(lower_bound)
+        var = DecisionVariable("$(base_name)_$i", lower_bound[i], upper_bound[i])
         add_variable!(p, var)
         push!(variables, var)
     end
@@ -42,10 +42,10 @@ end
 
 function set_objective!(p::NonlinearProgram, objective::Function, vars::Vector{DecisionVariable})
     p.objective = objective
-    empty!(p.objectiveVarIndices)
+    empty!(p.objective_var_indices)
     for var in vars
         index = find_variable!(p, var)
-        push!(p.objectiveVarIndices, index)
+        push!(p.objective_var_indices, index)
     end
 end
 
@@ -55,14 +55,14 @@ function set_sense!(p::NonlinearProgram, sense::Symbol)
 end
 
 function add_constraint!(p::NonlinearProgram, c::Constraint, vars::Vector{DecisionVariable})
-    varIndices = [find_variable!(p, var) for var in vars]
-    p.constraintVarIndices[c] = varIndices
+    var_indices = [find_variable!(p, var) for var in vars]
+    p.constraint_var_indices[c] = var_indices
     nothing
 end
 
 # MathProgBase interface
 
-MathProgBase.features_available(p::NonlinearProgram) = p.featuresAvailable
+MathProgBase.features_available(p::NonlinearProgram) = p.available_features
 
 function MathProgBase.initialize(p::NonlinearProgram, requested_features::Vector{Symbol})
     for feat in requested_features
@@ -73,22 +73,22 @@ function MathProgBase.initialize(p::NonlinearProgram, requested_features::Vector
 end
 
 function MathProgBase.eval_f(p::NonlinearProgram, x)
-    p.objective(view(x, p.objectiveVarIndices))
+    p.objective(view(x, p.objective_var_indices))
 end
 
 function MathProgBase.eval_grad_f(p::NonlinearProgram, g, x)
     g[:] = zero(eltype(x))
-    ForwardDiff.gradient!(view(g, p.objectiveVarIndices), p.objective, view(x, p.objectiveVarIndices))
+    ForwardDiff.gradient!(view(g, p.objective_var_indices), p.objective, view(x, p.objective_var_indices))
 end
 
 function MathProgBase.eval_g(p::NonlinearProgram, g, x)
-    gStartIndex = 1
-    for (constraint, varIndices) in p.constraintVarIndices
+    start_index = 1
+    for (constraint, var_indices) in p.constraint_var_indices
         constraintLength = length(constraint)
-        gView = view(g, gStartIndex : gStartIndex + constraintLength - 1)
-        xView = view(x, varIndices)
-        constraint.f!(gView, xView)
-        gStartIndex += constraintLength
+        gview = view(g, start_index : start_index + constraintLength - 1)
+        xview = view(x, var_indices)
+        constraint.f!(gview, xview)
+        start_index += constraintLength
     end
     g
 end
@@ -97,9 +97,9 @@ function MathProgBase.jac_structure(p::NonlinearProgram)
     rowStart = 1
     rows = Int64[]
     cols = Int64[]
-    for (constraint, varIndices) in p.constraintVarIndices
+    for (constraint, var_indices) in p.constraint_var_indices
         numRows = length(constraint)
-        for col in varIndices
+        for col in var_indices
             for i = 0 : numRows - 1
                 row = rowStart + i
                 push!(rows, row)
@@ -114,14 +114,14 @@ end
 function MathProgBase.hesslag_structure(p::NonlinearProgram)
     rows = Int64[]
     cols = Int64[]
-    allVarIndices = Vector{Vector{Int64}}()
-    push!(allVarIndices, p.objectiveVarIndices)
-    for varIndices in values(p.constraintVarIndices)
-        push!(allVarIndices, varIndices)
+    allvar_indices = Vector{Vector{Int64}}()
+    push!(allvar_indices, p.objective_var_indices)
+    for var_indices in values(p.constraint_var_indices)
+        push!(allvar_indices, var_indices)
     end
-    for varIndices in allVarIndices
-        for col in varIndices
-            for row in varIndices
+    for var_indices in allvar_indices
+        for col in var_indices
+            for row in var_indices
                 if row >= col # lower triangle only
                     push!(rows, row)
                     push!(cols, col)
@@ -133,44 +133,44 @@ function MathProgBase.hesslag_structure(p::NonlinearProgram)
 end
 
 function MathProgBase.eval_jac_g(p::NonlinearProgram, J, x)
-    startIndex = 1
-    for (constraint, varIndices) in p.constraintVarIndices
-        xConstraint = view(x, varIndices)
-        out = JacobianResult(similar(x, length(constraint)), similar(x, length(constraint), length(xConstraint))) # TODO: preallocate.
-        ForwardDiff.jacobian!(out, constraint.f!, xConstraint)
-        sparseJac = ForwardDiff.jacobian(out)
-        sparseJacLength = length(sparseJac)
-        Jview = view(J, startIndex : startIndex + sparseJacLength - 1)
-        copy!(Jview, vec(sparseJac))
-        startIndex += sparseJacLength
+    start = 1
+    for (constraint, var_indices) in p.constraint_var_indices
+        xconstraint = view(x, var_indices)
+        yconstraint = similar(x, length(constraint))
+        out = DiffBase.DiffResult(yconstraint, similar(x, length(constraint), length(xconstraint))) # TODO: preallocate.
+        ForwardDiff.jacobian!(out, constraint.f!, yconstraint, xconstraint)
+        sparse_jac = DiffBase.jacobian(out)
+        Jview = view(J, start : start + length(sparse_jac) - 1)
+        copy!(Jview, vec(sparse_jac))
+        start += length(sparse_jac)
     end
 end
 
 function MathProgBase.eval_hesslag(p::NonlinearProgram, H, x, σ, μ)
-    HstartIndex = 1
+    start = 1
 
     # objective
-    xObjective = view(x, p.objectiveVarIndices)
-    out = HessianResult(xObjective) # TODO: preallocate
-    ForwardDiff.hessian!(out, p.objective, xObjective)
-    Hobj = ForwardDiff.hessian(out)
+    xobjective = view(x, p.objective_var_indices)
+    out = DiffBase.HessianResult(xobjective) # TODO: preallocate
+    ForwardDiff.hessian!(out, p.objective, xobjective)
+    Hobj = DiffBase.hessian(out)
     scale!(Hobj, σ)
-    HobjLength = num_triangular_elements(size(Hobj, 1))
-    copy_lower_triangle_column_major!(view(H, HstartIndex : HstartIndex + HobjLength - 1), Hobj)
-    HstartIndex += HobjLength
+    Hobjlength = num_triangular_elements(size(Hobj, 1))
+    copy_lower_triangle_column_major!(view(H, start : start + Hobjlength - 1), Hobj)
+    start += Hobjlength
 
     # constraints
-    constraintStartIndex = 1
-    for (constraint, varIndices) in p.constraintVarIndices
-        xConstraint = view(x, varIndices)
-        μConstraint = view(μ, constraintStartIndex : constraintStartIndex + length(constraint) - 1)
-        out = HessianResult(xConstraint) # TODO: preallocate
-        ForwardDiff.hessian!(out, LagrangianContribution(constraint, μConstraint), xConstraint)
-        Hconstraint = ForwardDiff.hessian(out)
-        HconstraintLength = num_triangular_elements(size(Hconstraint, 1))
-        copy_lower_triangle_column_major!(view(H, HstartIndex : HstartIndex + HconstraintLength - 1), Hconstraint)
-        HstartIndex += HconstraintLength
-        constraintStartIndex += length(constraint)
+    constraintstart = 1
+    for (constraint, var_indices) in p.constraint_var_indices
+        xconstraint = view(x, var_indices)
+        μConstraint = view(μ, constraintstart : constraintstart + length(constraint) - 1)
+        out = DiffBase.HessianResult(xconstraint) # TODO: preallocate
+        ForwardDiff.hessian!(out, LagrangianContribution(constraint, μConstraint), xconstraint)
+        Hconstraint = DiffBase.hessian(out)
+        Hconstraintlength = num_triangular_elements(size(Hconstraint, 1))
+        copy_lower_triangle_column_major!(view(H, start : start + Hconstraintlength - 1), Hconstraint)
+        start += Hconstraintlength
+        constraintstart += length(constraint)
     end
 end
 

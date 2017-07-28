@@ -16,7 +16,7 @@ function full_hesslag{T}(evaluator::MathProgBase.AbstractNLPEvaluator, x::Abstra
 end
 
 function test_hs071(prog::NonlinearProgram)
-    solver = MathProgBase.defaultNLPsolver
+    solver = IpoptSolver(print_level=0)
     m = MathProgBase.NonlinearModel(solver)
     loadproblem!(m, prog)
     MathProgBase.setwarmstart!(m,[1,5,5,1])
@@ -26,11 +26,11 @@ function test_hs071(prog::NonlinearProgram)
 
     @test stat == :Optimal
     x = MathProgBase.getsolution(m)
-    @test_approx_eq_eps x[1] 1.0000000000000000 1e-5
-    @test_approx_eq_eps x[2] 4.7429996418092970 1e-5
-    @test_approx_eq_eps x[3] 3.8211499817883077 1e-5
-    @test_approx_eq_eps x[4] 1.3794082897556983 1e-5
-    @test_approx_eq_eps MathProgBase.getobjval(m) 17.014017145179164 1e-5
+    @test isapprox(x[1], 1.0000000000000000, atol = 1e-5)
+    @test isapprox(x[2], 4.7429996418092970, atol = 1e-5)
+    @test isapprox(x[3], 3.8211499817883077, atol = 1e-5)
+    @test isapprox(x[4], 1.3794082897556983, atol = 1e-5)
+    @test isapprox(MathProgBase.getobjval(m), 17.014017145179164, atol = 1e-5)
 
     # Test that a second call to optimize! works
     MathProgBase.setwarmstart!(m,[1,5,5,1])
@@ -70,7 +70,7 @@ end
     test_hs071(prog)
 
     # test without hesslag
-    prog.featuresAvailable = [:Grad, :Jac] # TODO: improve API
+    prog.available_features = [:Grad, :Jac] # TODO: improve API
     test_hs071(prog)
 end
 
@@ -86,6 +86,6 @@ end
     test_hs071(prog)
 
     # test without hesslag
-    prog.featuresAvailable = [:Grad, :Jac] # TODO: improve API
+    prog.available_features = [:Grad, :Jac] # TODO: improve API
     test_hs071(prog)
 end

@@ -1,9 +1,9 @@
 type DecisionVariable
     name::String
-    lowerBound::Float64
-    upperBound::Float64
+    lower_bound::Float64
+    upper_bound::Float64
 end
 DecisionVariable(name::String) = DecisionVariable(name, -Inf, Inf)
 name(var::DecisionVariable) = var.name
-lower_bound(var::DecisionVariable) = var.lowerBound
-upper_bound(var::DecisionVariable) = var.upperBound
+lower_bound(var::DecisionVariable) = var.lower_bound
+upper_bound(var::DecisionVariable) = var.upper_bound

@@ -10,7 +10,7 @@
     add_constraint!(prog, Constraint((g, x) -> g[1] = x[2] - x[1]^3 - x[3]^2, [0.], [0.]), x[1 : 3])
     add_constraint!(prog, Constraint((g, x) -> g[1] = x[1]^2 - x[2] - x[3]^2, [0.], [0.]), [x[1]; x[2]; x[4]])
 
-    solver = MathProgBase.defaultNLPsolver
+    solver = IpoptSolver(print_level=0)
     m = MathProgBase.NonlinearModel(solver)
     loadproblem!(m, prog)
     MathProgBase.setwarmstart!(m,[2, 2, 2, 2])
