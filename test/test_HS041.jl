@@ -11,7 +11,7 @@
     end
     add_constraint!(prog, Constraint(constr!, [0.], [0.]), x)
 
-    solver = MathProgBase.defaultNLPsolver
+    solver = IpoptSolver(print_level=0)
     m = MathProgBase.NonlinearModel(solver)
     loadproblem!(m, prog)
     MathProgBase.setwarmstart!(m,[2, 2, 2, 2])

@@ -1,21 +1,20 @@
 immutable Constraint{F}
     f!::F
-    lowerBound::Vector{Float64}
-    upperBound::Vector{Float64}
+    lower_bound::Vector{Float64}
+    upper_bound::Vector{Float64}
     name::String
 
-    function Constraint(f!::F, lower::Vector{Float64}, upper::Vector{Float64}, name::String)
+    function Constraint(f!::F, lower::Vector{Float64}, upper::Vector{Float64}, name::String) where {F}
         length(lower) == length(upper) || error("lower bound and upper bound must have the same length")
-        new(f!, lower, upper, name)
+        new{F}(f!, lower, upper, name)
     end
 end
-Constraint{F}(f!::F, lower::Vector{Float64}, upper::Vector{Float64}, name::String) = Constraint{F}(f!, lower, upper, name)
 Constraint(f!, lower::Vector{Float64}, upper::Vector{Float64}) = Constraint(f!, lower, upper, "")
 
-lower_bound(c::Constraint) = c.lowerBound
-upper_bound(c::Constraint) = c.upperBound
+lower_bound(c::Constraint) = c.lower_bound
+upper_bound(c::Constraint) = c.upper_bound
 name(c::Constraint) = c.name
-length(c::Constraint) = length(c.lowerBound)
+Base.length(c::Constraint) = length(c.lower_bound)
 
 evaluate!(out::AbstractVector, c::Constraint, arg::AbstractVector) = c.f!(out, arg)
 
