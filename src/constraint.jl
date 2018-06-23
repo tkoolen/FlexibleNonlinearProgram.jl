@@ -1,4 +1,4 @@
-immutable Constraint{F}
+struct Constraint{F}
     f!::F
     lower_bound::Vector{Float64}
     upper_bound::Vector{Float64}
@@ -18,7 +18,7 @@ Base.length(c::Constraint) = length(c.lower_bound)
 
 evaluate!(out::AbstractVector, c::Constraint, arg::AbstractVector) = c.f!(out, arg)
 
-type LagrangianContribution{F, V<:AbstractVector}
+mutable struct LagrangianContribution{F, V<:AbstractVector}
     constraint::Constraint{F}
     μ::V
 end

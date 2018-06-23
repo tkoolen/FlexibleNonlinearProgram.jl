@@ -1,6 +1,6 @@
 # All code in this file copied from MathProgBase (test/nlp.jl) and used as a baseline for comparison.
 
-type HS071 <: MathProgBase.AbstractNLPEvaluator
+mutable struct HS071 <: MathProgBase.AbstractNLPEvaluator
 end
 
 # hs071

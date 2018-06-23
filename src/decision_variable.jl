@@ -1,4 +1,4 @@
-type DecisionVariable
+mutable struct DecisionVariable
     name::String
     lower_bound::Float64
     upper_bound::Float64
