@@ -1,4 +1,4 @@
-type NonlinearProgram <: MathProgBase.AbstractNLPEvaluator
+mutable struct NonlinearProgram <: MathProgBase.AbstractNLPEvaluator
     variables::Vector{DecisionVariable}
     objective::Function # TODO: type unstable
     objective_var_indices::Vector{Int64}

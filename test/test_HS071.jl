@@ -2,7 +2,7 @@
 # Hock-Schittkowski nonlinear programming test problem 71.
 # http://www.ai7.uni-bayreuth.de/test_problem_coll.pdf
 
-function full_hesslag{T}(evaluator::MathProgBase.AbstractNLPEvaluator, x::AbstractVector{T}, σ::T, μ::AbstractVector{T})
+function full_hesslag(evaluator::MathProgBase.AbstractNLPEvaluator, x::AbstractVector{T}, σ::T, μ::AbstractVector{T}) where T
     hesslag_rows, hesslag_cols = MathProgBase.hesslag_structure(evaluator)
     Hvec = similar(x, length(hesslag_rows))
     MathProgBase.eval_hesslag(evaluator, Hvec, x, σ, μ)
